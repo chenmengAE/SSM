@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!--读取jdbc.properties配置文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <!--开spring的注解开发
+        base-package：指定spring扫描注解的包
+    -->
+    <context:component-scan base-package="com.hkd.service,com.hkd.mapper"/>
+
+    <!--将dataSource交给spring管理-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+    <!--将sqlSessionFactory交给spring管理-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--给实体类起别名-->
+        <property name="typeAliasesPackage" value="com.hkd.pojo"/>
+
+        <!--List<String>  指明mapper.xml的路径-->
+        <property name="mapperLocations" >
+            <list>
+                <value>classpath:com/hkd/mapper/*mapper.xml</value>
+            </list>
+        </property>
+
+        <property name="plugins">
+            <bean class="com.github.pagehelper.PageInterceptor"></bean>
+        </property>
+        <!--对象  将数据库连接池对象交给spring管理-->
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!--sqlSession对象交给spring管理-->
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+        <!--一个属性，没有set方法，使用构造注入,这个属性是对象,是个sqlSessionFactory对象-->
+        <constructor-arg ref="sqlSessionFactory"/>
+    </bean>
+    <!--批量将mapper交给spring管理
+        id：不可写,不能手动指定id
+            spring会自动分配id  id生成规则：类名首字母小写
+                            UserMapper.java==>  userMapper
+        代理类的对象
+        org.mybatis.spring.mapper.MapperScannerConfigurer:批量扫面mapper
+    -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--mapper接口所在的包-->
+        <property name="basePackage" value="com.hkd.mapper"/>
+    </bean>
+
+    <!--配置事务管理器，将事务管理的增强交给spring管理-->
+    <bean id="txAdvice" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <!--将希望被管理事务的数据库连接池对象写入-->
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!--
+    配置事务增强通知，告诉spring谁要被事务增强
+    id:给当前事务管理起名字
+    transaction-manager：指定你想使用的事务管理增强
+    -->
+    <tx:advice id="txMyAdvice" transaction-manager="txAdvice">
+        <!--配置事务管理的细节-->
+        <tx:attributes>
+            <!--一次配置事务管理的细节
+                name:被事务管理的方法名
+                read-only：是不是只读事务
+                查询方法：只读事务
+                增删改：非只读事务
+            -->
+            <!--所有以select开头的方法都添加只读事务，意味者日后service中所有的查询方法都得以select开头-->
+            <tx:method name="select*" read-only="true"/>
+            <!--将剩余所有方法选中
+                剩余的全是写操作
+                read-only：false 非只读操作  默认就是非只读操作
+                propagation:事务传播
+            -->
+            <tx:method name="*" propagation="REQUIRED"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <!--组装增强-->
+    <aop:config>
+        <!--定义切点-->
+        <aop:pointcut id="servicePointCut" expression="execution(* com.hkd.service..*.*(..))"/>
+        <!--组装切点-->
+        <aop:advisor advice-ref="txMyAdvice" pointcut-ref="servicePointCut"/>
+    </aop:config>
+
+    <!--    <bean id="userMapperImpl" class="com.baizhi.service.impl.UserServiceImpl"/>-->
+</beans>

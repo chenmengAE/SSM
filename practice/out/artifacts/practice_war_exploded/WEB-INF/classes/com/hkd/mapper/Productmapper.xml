@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hkd.mapper.ProductMapper">
+
+    <resultMap id="productMap" type="Product">
+        <id column="productid" property="productId"></id>
+        <result column="productname" property="productName"></result>
+        <result column="price" property="price"></result>
+        <result column="inventory" property="inventory"></result>
+        <result column="description" property="description"></result>
+    </resultMap>
+
+    <insert id="insertProduct">
+        insert into t_product values (null,#{productName},#{price},#{inventory},#{description})
+    </insert>
+
+    <delete id="deleteProductById">
+        delete from t_product where productid = #{productId}
+    </delete>
+
+    <update id="updateProduct">
+        update t_product set productname = #{productName},price = #{price},inventory=#{inventory},description=#{description} where productid=#{productId}
+    </update>
+
+    <select id="selectProducts" resultMap="productMap">
+        select * from t_product
+    </select>
+
+    <select id="selectProductByName" resultMap="productMap">
+        select * from t_product where productname like concat('%',#{productName},'%')
+    </select>
+
+    <select id="selectProductById" resultMap="productMap">
+        select * from t_product where productid = #{productId}
+    </select>
+
+    <delete id="deleteProducts">
+        delete  from t_product where productid in
+                               <foreach collection="array" item="ids" open="(" separator="," close=")">
+                                   #{ids}
+                               </foreach>
+    </delete>
+
+    <select id="selectProductByPrice" resultMap="productMap">
+        select * from t_product where price= #{price}
+    </select>
+
+    <select id="selectProductByNameAndPrice" resultMap="productMap">
+        select * from t_product where   productname like concat('%',#{productName},'%')
+
+        <if test="price != null">
+            <if test="operation == 0">
+                AND price = #{price}
+            </if>
+
+            <if test="operation == 1">
+                and price > #{price}
+            </if>
+            <if test="operation == 2">
+                and price &lt; #{price}
+            </if>
+        </if>
+    </select>
+
+</mapper>
